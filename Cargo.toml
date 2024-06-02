@@ -1,0 +1,9 @@
+[package]
+name = "xsscan"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+httparse = "1.8.0"
+reqwest = "0.12.4"
+regex = "1.10.4"
