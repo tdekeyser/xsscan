@@ -1,5 +1,3 @@
-use reqwest::header::CONTENT_SECURITY_POLICY_REPORT_ONLY;
-
 mod http;
 mod csrf;
 mod session;
