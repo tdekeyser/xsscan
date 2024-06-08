@@ -16,10 +16,8 @@ pub struct CsrfTokenParser {}
 
 impl ParseToken<CsrfToken> for CsrfTokenParser {
     fn parse(&self, request: &Request) -> Option<CsrfToken> {
-        if let Some(body_token) = Self::extract_token_from_body(request) {
-            return Some(CsrfToken(body_token));
-        }
-        Self::extract_token_from_headers(request)
+        Self::extract_token_from_body(request)
+            .or(Self::extract_token_from_headers(request))
     }
 }
 
@@ -28,19 +26,18 @@ impl CsrfTokenParser {
         Self {}
     }
 
-    fn extract_token_from_body(request: &Request) -> Option<String> {
+    fn extract_token_from_body(request: &Request) -> Option<CsrfToken> {
         request.body()?
             .as_bytes()
             .and_then(|b| String::from_utf8(b.into()).ok())
             .and_then(Self::capture_token)
     }
 
-    fn capture_token(body: String) -> Option<String> {
+    fn capture_token(body: String) -> Option<CsrfToken> {
         let re = Regex::new(r#"(?i)(csrf[_-]?token|authenticity[_-]?token|token|csrf)["']?\s*[:=]\s*["']?([a-zA-Z0-9\-_=]+)["']?"#).unwrap();
-        if let Some(caps) = re.captures(body.as_str()) {
-            return Some(caps[2].to_string());
-        }
-        None
+
+        re.captures(body.as_str())
+            .and_then(|caps| Some(CsrfToken(caps[2].to_string())))
     }
 
     fn extract_token_from_headers(request: &Request) -> Option<CsrfToken> {
@@ -97,5 +94,17 @@ mod tests {
         test_with_body_csrf_token_cap: ("CsrfToken", "user-agent"),
         test_with_body_capitalized: ("CSRFToken", "user-agent"),
         test_with_body_authenticity: ("authenticity_token", "user-agent"),
+    }
+
+    #[test]
+    fn no_token_found() {
+        let request = reqwest::Client::new()
+            .post("https://example.com/change-email")
+            .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .body("email=test@hello.com")
+            .build()
+            .unwrap();
+
+        assert_eq!(CsrfTokenParser::new().parse(&request), None);
     }
 }
