@@ -1,18 +1,31 @@
 use regex::Regex;
 use reqwest::Request;
 
+use crate::traits::ExtractToken;
+
 #[derive(Debug, PartialEq)]
-struct CsrfToken(String);
+pub struct CsrfToken(String);
+
+impl CsrfToken {
+    pub fn new(s: &str) -> Self {
+        Self(String::from(s))
+    }
+}
 
 pub struct CsrfTokenExtractor {}
 
-impl CsrfTokenExtractor {
-    pub fn extract(request: &Request) -> Option<CsrfToken> {
+impl ExtractToken<CsrfToken> for CsrfTokenExtractor {
+    fn extract_token(&self, request: &Request) -> Option<CsrfToken> {
         if let Some(body_token) = Self::extract_token_from_body(request) {
             return Some(CsrfToken(body_token));
         }
-
         Self::extract_token_from_headers(request)
+    }
+}
+
+impl CsrfTokenExtractor {
+    pub fn new() -> Self {
+        Self {}
     }
 
     fn extract_token_from_body(request: &Request) -> Option<String> {
@@ -51,6 +64,7 @@ mod tests {
     use reqwest::header::CONTENT_TYPE;
 
     use crate::csrf::token::{CsrfToken, CsrfTokenExtractor};
+    use crate::traits::ExtractToken;
 
     macro_rules! find_token_in_request {
         ( $( $name:ident : ( $body_token_name:expr , $header_token_name:expr ) , )* ) => {
@@ -65,8 +79,8 @@ mod tests {
                         .build()
                         .unwrap();
 
-                    let result = CsrfTokenExtractor::extract(&request);
-                    assert_eq!(result, Some(CsrfToken("1RANDOM_CSRF_TOKEN34==".to_string())));
+                    let result = CsrfTokenExtractor::new().extract_token(&request);
+                    assert_eq!(result, Some(CsrfToken::new("1RANDOM_CSRF_TOKEN34==")));
                 }
             )*
         }
@@ -76,8 +90,8 @@ mod tests {
         test_with_header_xsrf: ("nothing", "X-XSRF-TOKEN"),
         test_with_header_csrf: ("nothing", "X-CSRF-TOKEN"),
         test_with_body_token: ("token", "user-agent"),
-        test_with_body__token: ("_token", "user-agent"),
-        test_with_body__csrf: ("_csrf", "user-agent"),
+        test_with_body_u_token: ("_token", "user-agent"),
+        test_with_body_u_csrf: ("_csrf", "user-agent"),
         test_with_body_token_cap: ("Token", "user-agent"),
         test_with_body_csrf_token: ("csrf_token", "user-agent"),
         test_with_body_csrf_token_cap: ("CsrfToken", "user-agent"),

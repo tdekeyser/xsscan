@@ -2,10 +2,12 @@ use regex::Regex;
 use reqwest::header::COOKIE;
 use reqwest::Request;
 
-pub struct SessionDetector {}
+use crate::traits::DetectSession;
 
-impl SessionDetector {
-    pub fn uses_session_cookie(request: &Request) -> bool {
+pub struct SessionCookieDetector {}
+
+impl DetectSession for SessionCookieDetector {
+    fn uses_session(&self, request: &Request) -> bool {
         let session_cookie_names = [
             "JSESSIONID",
             "PHPSESSID",
@@ -23,6 +25,12 @@ impl SessionDetector {
         let cookies = Self::get_cookies(request);
         re.is_match(cookies.as_str())
     }
+}
+
+impl SessionCookieDetector {
+    fn new() -> SessionCookieDetector {
+        SessionCookieDetector {}
+    }
 
     fn get_cookies(request: &Request) -> String {
         request.headers()
@@ -37,7 +45,7 @@ impl SessionDetector {
 mod tests {
     use reqwest::header::COOKIE;
 
-    use crate::session::SessionDetector;
+    use crate::session::{DetectSession, SessionCookieDetector};
 
     #[test]
     fn find_session_cookie() {
@@ -47,7 +55,7 @@ mod tests {
             .build()
             .unwrap();
 
-        assert!(SessionDetector::uses_session_cookie(&request));
+        assert!(SessionCookieDetector::new().uses_session(&request));
     }
 
     #[test]
@@ -58,7 +66,7 @@ mod tests {
             .build()
             .unwrap();
 
-        assert!(!SessionDetector::uses_session_cookie(&request));
+        assert!(!SessionCookieDetector::new().uses_session(&request));
     }
 
     #[test]
@@ -68,6 +76,6 @@ mod tests {
             .build()
             .unwrap();
 
-        assert!(!SessionDetector::uses_session_cookie(&request));
+        assert!(!SessionCookieDetector::new().uses_session(&request));
     }
 }
