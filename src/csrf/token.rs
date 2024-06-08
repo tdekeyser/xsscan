@@ -34,9 +34,9 @@ impl CsrfTokenParser {
     }
 
     fn capture_token(body: String) -> Option<CsrfToken> {
-        let re = Regex::new(r#"(?i)(csrf[_-]?token|authenticity[_-]?token|token|csrf)["']?\s*[:=]\s*["']?([a-zA-Z0-9\-_=]+)["']?"#).unwrap();
-
-        re.captures(body.as_str())
+        Regex::new(r#"(?i)(csrf[_-]?token|authenticity[_-]?token|token|csrf)["']?\s*[:=]\s*["']?([a-zA-Z0-9\-_=]+)["']?"#)
+            .unwrap()
+            .captures(body.as_str())
             .and_then(|caps| Some(CsrfToken(caps[2].to_string())))
     }
 
