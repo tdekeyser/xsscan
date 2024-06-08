@@ -34,7 +34,13 @@ impl CsrfTokenParser {
     }
 
     fn capture_token(body: String) -> Option<CsrfToken> {
-        Regex::new(r#"(?i)(csrf[_-]?token|authenticity[_-]?token|token|csrf)["']?\s*[:=]\s*["']?([a-zA-Z0-9\-_=]+)["']?"#)
+        let token_matcher = "[cx]srf[_-]?token|authenticity[_-]?token|token|[cx]srf";
+        let regex = format!(
+            r#"(?i)({})["']?\s*[:=]\s*["']?([a-zA-Z0-9\-_=]+)["']?"#,
+            token_matcher
+        );
+
+        Regex::new(regex.as_str())
             .unwrap()
             .captures(body.as_str())
             .and_then(|caps| Some(CsrfToken(caps[2].to_string())))
@@ -89,6 +95,8 @@ mod tests {
         test_with_body_token: ("token", "user-agent"),
         test_with_body_u_token: ("_token", "user-agent"),
         test_with_body_u_csrf: ("_csrf", "user-agent"),
+        test_with_body_xsrf_token: ("xsrf-token", "user-agent"),
+        test_with_body_xsrf: ("xsrf", "user-agent"),
         test_with_body_token_cap: ("Token", "user-agent"),
         test_with_body_csrf_token: ("csrf_token", "user-agent"),
         test_with_body_csrf_token_cap: ("CsrfToken", "user-agent"),
