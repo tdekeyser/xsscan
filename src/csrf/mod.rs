@@ -1,7 +1,8 @@
 use reqwest::Request;
 
 use crate::csrf::token::CsrfToken;
-use crate::traits::{DetectSession, ExtractToken};
+use crate::session::SessionCookie;
+use crate::traits::{ParseToken};
 
 mod token;
 mod exploit;
@@ -27,23 +28,23 @@ impl From<&Request> for VulnerableRequest {
 }
 
 struct CsrfTester {
-    detect_session: Box<dyn DetectSession>,
-    token_extraction: Box<dyn ExtractToken<CsrfToken>>,
+    session: Box<dyn ParseToken<SessionCookie>>,
+    csrf_token: Box<dyn ParseToken<CsrfToken>>,
 }
 
 impl CsrfTester {
-    pub fn new(detect_session: Box<dyn DetectSession>,
-               token_extraction: Box<dyn ExtractToken<CsrfToken>>) -> Self {
-        Self { detect_session, token_extraction }
+    pub fn new(session: Box<dyn ParseToken<SessionCookie>>,
+               csrf_token: Box<dyn ParseToken<CsrfToken>>) -> Self {
+        Self { session, csrf_token }
     }
 
     fn test_vulnerability(&self, request: &Request) -> Option<VulnerableRequest> {
-        if !self.detect_session.uses_session(&request) {
-            return None
+        if let None = self.session.parse(&request) {
+            return None;
         }
 
-        match self.token_extraction.extract_token(&request) {
-            Some(csrf_token) => None,
+        match self.csrf_token.parse(&request) {
+            Some(_) => None,
             None => Some(VulnerableRequest::from(request))
         }
     }
@@ -55,30 +56,31 @@ mod tests {
 
     use crate::csrf::{CsrfTester, VulnerableRequest};
     use crate::csrf::token::CsrfToken;
-    use crate::traits::{DetectSession, ExtractToken};
+    use crate::session::SessionCookie;
+    use crate::traits::ParseToken;
 
     #[derive(Clone)]
-    pub struct MockDetector {
-        has_session: bool,
+    pub struct MockParser {
+        session: fn() -> Option<SessionCookie>,
         csrf_token: fn() -> Option<CsrfToken>,
     }
 
-    impl DetectSession for MockDetector {
-        fn uses_session(&self, _: &Request) -> bool {
-            self.has_session
+    impl ParseToken<SessionCookie> for MockParser {
+        fn parse(&self, _: &Request) -> Option<SessionCookie> {
+            (self.session)()
         }
     }
 
-    impl ExtractToken<CsrfToken> for MockDetector {
-        fn extract_token(&self, _: &Request) -> Option<CsrfToken> {
+    impl ParseToken<CsrfToken> for MockParser {
+        fn parse(&self, _: &Request) -> Option<CsrfToken> {
             (self.csrf_token)()
         }
     }
 
     #[test]
     fn not_vulnerable_if_no_session_cookies() {
-        let mock: MockDetector = MockDetector {
-            has_session: false,
+        let mock: MockParser = MockParser {
+            session: || None,
             csrf_token: || None,
         };
         let tester = CsrfTester::new(Box::new(mock.clone()), Box::new(mock.clone()));
@@ -93,8 +95,8 @@ mod tests {
 
     #[test]
     fn vulnerable_if_session_cookie_and_no_csrf_token() {
-        let mock = MockDetector {
-            has_session: true,
+        let mock = MockParser {
+            session: || Some(SessionCookie::new("a-session")),
             csrf_token: || None,
         };
         let tester = CsrfTester::new(Box::new(mock.clone()), Box::new(mock.clone()));

@@ -2,12 +2,21 @@ use regex::Regex;
 use reqwest::header::COOKIE;
 use reqwest::Request;
 
-use crate::traits::DetectSession;
+use crate::traits::{ParseToken};
 
-pub struct SessionCookieDetector {}
+#[derive(PartialEq, Debug)]
+pub struct SessionCookie(String);
 
-impl DetectSession for SessionCookieDetector {
-    fn uses_session(&self, request: &Request) -> bool {
+impl SessionCookie {
+    pub fn new(s: &str) -> Self {
+        Self(String::from(s))
+    }
+}
+
+pub struct SessionCookieParser {}
+
+impl ParseToken<SessionCookie> for SessionCookieParser {
+    fn parse(&self, request: &Request) -> Option<SessionCookie> {
         let session_cookie_names = [
             "JSESSIONID",
             "PHPSESSID",
@@ -19,17 +28,21 @@ impl DetectSession for SessionCookieDetector {
             "sid"
         ];
 
-        let pattern = format!(r"(?i)({})\s*=", session_cookie_names.join("|"));
+        let pattern = format!(r"(?i)({})\s*=([^&]+)", session_cookie_names.join("|"));
         let re = Regex::new(&pattern).unwrap();
 
         let cookies = Self::get_cookies(request);
-        re.is_match(cookies.as_str())
+
+        match re.captures(cookies.as_str()) {
+            Some(caps) => Some(SessionCookie(caps[2].to_string())),
+            None => None
+        }
     }
 }
 
-impl SessionCookieDetector {
-    fn new() -> SessionCookieDetector {
-        SessionCookieDetector {}
+impl SessionCookieParser {
+    fn new() -> SessionCookieParser {
+        SessionCookieParser {}
     }
 
     fn get_cookies(request: &Request) -> String {
@@ -45,7 +58,8 @@ impl SessionCookieDetector {
 mod tests {
     use reqwest::header::COOKIE;
 
-    use crate::session::{DetectSession, SessionCookieDetector};
+    use crate::session::{SessionCookie, SessionCookieParser};
+    use crate::traits::ParseToken;
 
     #[test]
     fn find_session_cookie() {
@@ -55,7 +69,20 @@ mod tests {
             .build()
             .unwrap();
 
-        assert!(SessionCookieDetector::new().uses_session(&request));
+        assert_eq!(SessionCookieParser::new().parse(&request),
+                   Some(SessionCookie::new("1234sess==")));
+    }
+
+    #[test]
+    fn find_session_cookie2() {
+        let request = reqwest::Client::new()
+            .post("https://example.com/change-email")
+            .header(COOKIE, "ASP.NET_SessionId=1234sess==")
+            .build()
+            .unwrap();
+
+        assert_eq!(SessionCookieParser::new().parse(&request),
+                   Some(SessionCookie::new("1234sess==")));
     }
 
     #[test]
@@ -66,7 +93,7 @@ mod tests {
             .build()
             .unwrap();
 
-        assert!(!SessionCookieDetector::new().uses_session(&request));
+        assert_eq!(SessionCookieParser::new().parse(&request), None);
     }
 
     #[test]
@@ -76,6 +103,6 @@ mod tests {
             .build()
             .unwrap();
 
-        assert!(!SessionCookieDetector::new().uses_session(&request));
+        assert_eq!(SessionCookieParser::new().parse(&request), None);
     }
 }

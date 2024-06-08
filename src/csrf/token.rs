@@ -1,7 +1,7 @@
 use regex::Regex;
 use reqwest::Request;
 
-use crate::traits::ExtractToken;
+use crate::traits::ParseToken;
 
 #[derive(Debug, PartialEq)]
 pub struct CsrfToken(String);
@@ -12,10 +12,10 @@ impl CsrfToken {
     }
 }
 
-pub struct CsrfTokenExtractor {}
+pub struct CsrfTokenParser {}
 
-impl ExtractToken<CsrfToken> for CsrfTokenExtractor {
-    fn extract_token(&self, request: &Request) -> Option<CsrfToken> {
+impl ParseToken<CsrfToken> for CsrfTokenParser {
+    fn parse(&self, request: &Request) -> Option<CsrfToken> {
         if let Some(body_token) = Self::extract_token_from_body(request) {
             return Some(CsrfToken(body_token));
         }
@@ -23,7 +23,7 @@ impl ExtractToken<CsrfToken> for CsrfTokenExtractor {
     }
 }
 
-impl CsrfTokenExtractor {
+impl CsrfTokenParser {
     pub fn new() -> Self {
         Self {}
     }
@@ -63,8 +63,8 @@ impl CsrfTokenExtractor {
 mod tests {
     use reqwest::header::CONTENT_TYPE;
 
-    use crate::csrf::token::{CsrfToken, CsrfTokenExtractor};
-    use crate::traits::ExtractToken;
+    use crate::csrf::token::{CsrfToken, CsrfTokenParser};
+    use crate::traits::ParseToken;
 
     macro_rules! find_token_in_request {
         ( $( $name:ident : ( $body_token_name:expr , $header_token_name:expr ) , )* ) => {
@@ -79,7 +79,7 @@ mod tests {
                         .build()
                         .unwrap();
 
-                    let result = CsrfTokenExtractor::new().extract_token(&request);
+                    let result = CsrfTokenParser::new().parse(&request);
                     assert_eq!(result, Some(CsrfToken::new("1RANDOM_CSRF_TOKEN34==")));
                 }
             )*
