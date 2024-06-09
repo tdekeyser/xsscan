@@ -2,10 +2,13 @@ use reqwest::Request;
 
 use crate::csrf::token::CsrfToken;
 use crate::session::SessionCookie;
-use crate::traits::{ParseToken};
+use crate::traits::ParseToken;
 
 mod token;
 mod exploit;
+mod origin;
+mod csp;
+mod samesite;
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct VulnerableRequest {

@@ -2,7 +2,7 @@ use regex::Regex;
 use reqwest::header::COOKIE;
 use reqwest::Request;
 
-use crate::traits::{ParseToken};
+use crate::traits::ParseToken;
 
 #[derive(PartialEq, Debug)]
 pub struct SessionCookie(String);

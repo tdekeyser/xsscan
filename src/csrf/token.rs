@@ -54,7 +54,7 @@ impl CsrfTokenParser {
 
         for header in &possible_headers {
             if let Some(token) = request.headers().get(*header) {
-                return Some(CsrfToken(token.to_str().unwrap_or_default().to_string()));
+                return Some(CsrfToken::new(token.to_str().unwrap_or_default()));
             }
         }
         None
