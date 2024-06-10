@@ -92,16 +92,16 @@ mod tests {
     find_token_in_request! {
         test_with_header_xsrf: ("nothing", "X-XSRF-TOKEN"),
         test_with_header_csrf: ("nothing", "X-CSRF-TOKEN"),
-        test_with_body_token: ("token", "user-agent"),
-        test_with_body_u_token: ("_token", "user-agent"),
-        test_with_body_u_csrf: ("_csrf", "user-agent"),
-        test_with_body_xsrf_token: ("xsrf-token", "user-agent"),
-        test_with_body_xsrf: ("xsrf", "user-agent"),
-        test_with_body_token_cap: ("Token", "user-agent"),
-        test_with_body_csrf_token: ("csrf_token", "user-agent"),
-        test_with_body_csrf_token_cap: ("CsrfToken", "user-agent"),
-        test_with_body_capitalized: ("CSRFToken", "user-agent"),
-        test_with_body_authenticity: ("authenticity_token", "user-agent"),
+        test_with_body_token: ("token", "UNUSED"),
+        test_with_body__token: ("_token", "UNUSED"),
+        test_with_body__csrf: ("_csrf", "UNUSED"),
+        test_with_body_xsrf_token: ("xsrf-token", "UNUSED"),
+        test_with_body_xsrf: ("xsrf", "UNUSED"),
+        test_with_body_token_cap: ("Token", "UNUSED"),
+        test_with_body_csrf_token: ("csrf_token", "UNUSED"),
+        test_with_body_csrf_token_cap: ("CsrfToken", "UNUSED"),
+        test_with_body_capitalized: ("CSRFToken", "UNUSED"),
+        test_with_body_authenticity: ("authenticity_token", "UNUSED"),
     }
 
     #[test]
