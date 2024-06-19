@@ -1,8 +1,7 @@
+use http::Request;
 use regex::Regex;
-use reqwest::header::COOKIE;
-use reqwest::Request;
 
-use crate::traits::ParseToken;
+use crate::traits::{Body, RequestParser};
 
 #[derive(PartialEq, Debug)]
 pub struct SessionCookie(String);
@@ -15,8 +14,8 @@ impl SessionCookie {
 
 pub struct SessionCookieParser {}
 
-impl ParseToken<SessionCookie> for SessionCookieParser {
-    fn parse(&self, request: &Request) -> Option<SessionCookie> {
+impl RequestParser<SessionCookie> for SessionCookieParser {
+    fn parse(&self, request: &Request<Body>) -> Option<SessionCookie> {
         let session_cookie_names = [
             "JSESSIONID",
             "PHPSESSID",
@@ -45,9 +44,9 @@ impl SessionCookieParser {
         SessionCookieParser {}
     }
 
-    fn get_cookies(request: &Request) -> String {
+    fn get_cookies(request: &Request<Body>) -> String {
         request.headers()
-            .get(COOKIE)
+            .get("Cookie")
             .and_then(|cookies| cookies.to_str().ok())
             .unwrap_or_default()
             .to_lowercase()
@@ -56,17 +55,18 @@ impl SessionCookieParser {
 
 #[cfg(test)]
 mod tests {
-    use reqwest::header::COOKIE;
-
     use crate::session::{SessionCookie, SessionCookieParser};
-    use crate::traits::ParseToken;
+    use crate::traits::{Body, RequestParser};
+
+    const EMPTY_BODY: Body = Body::Text(String::new());
 
     #[test]
     fn find_session_cookie() {
-        let request = reqwest::Client::new()
-            .post("https://example.com/change-email")
-            .header(COOKIE, "JSESSIONID=1234sess==&username=hello")
-            .build()
+        let request = http::Request::builder()
+            .method("POST")
+            .uri("https://example.com/change-email")
+            .header("Cookie", "JSESSIONID=1234sess==&username=hello")
+            .body(EMPTY_BODY)
             .unwrap();
 
         assert_eq!(SessionCookieParser::new().parse(&request),
@@ -75,10 +75,11 @@ mod tests {
 
     #[test]
     fn find_session_cookie2() {
-        let request = reqwest::Client::new()
-            .post("https://example.com/change-email")
-            .header(COOKIE, "ASP.NET_SessionId=1234sess==")
-            .build()
+        let request = http::Request::builder()
+            .method("POST")
+            .uri("https://example.com/change-email")
+            .header("Cookie", "ASP.NET_SessionId=1234sess==")
+            .body(EMPTY_BODY)
             .unwrap();
 
         assert_eq!(SessionCookieParser::new().parse(&request),
@@ -87,10 +88,11 @@ mod tests {
 
     #[test]
     fn find_session_cookie_does_not_exist() {
-        let request = reqwest::Client::new()
-            .post("https://example.com/change-email")
-            .header(COOKIE, "username=hello")
-            .build()
+        let request = http::Request::builder()
+            .method("POST")
+            .uri("https://example.com/change-email")
+            .header("Cookie", "username=hello")
+            .body(EMPTY_BODY)
             .unwrap();
 
         assert_eq!(SessionCookieParser::new().parse(&request), None);
@@ -98,9 +100,10 @@ mod tests {
 
     #[test]
     fn find_session_cookie_no_cookies() {
-        let request = reqwest::Client::new()
-            .post("https://example.com/change-email")
-            .build()
+        let request = http::Request::builder()
+            .method("POST")
+            .uri("https://example.com/change-email")
+            .body(EMPTY_BODY)
             .unwrap();
 
         assert_eq!(SessionCookieParser::new().parse(&request), None);

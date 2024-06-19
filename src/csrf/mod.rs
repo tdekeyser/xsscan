@@ -1,8 +1,8 @@
-use reqwest::Request;
+use http::Request;
 
 use crate::csrf::token::CsrfToken;
 use crate::session::SessionCookie;
-use crate::traits::ParseToken;
+use crate::traits::{Body, RequestParser};
 
 mod token;
 mod exploit;
@@ -17,31 +17,30 @@ pub struct VulnerableRequest {
     body: String,
 }
 
-impl From<&Request> for VulnerableRequest {
-    fn from(r: &Request) -> Self {
+impl From<&Request<Body>> for VulnerableRequest {
+    fn from(r: &Request<Body>) -> Self {
         Self {
-            url: r.url().to_string(),
+            url: r.uri().to_string(),
             method: r.method().to_string(),
             body: match r.body() {
-                Some(b) => String::from_utf8(b.as_bytes().unwrap_or_default().into()).ok().unwrap(),
-                None => String::new(),
+                Body::Text(b) => b.to_string(),
             },
         }
     }
 }
 
 struct CsrfTester {
-    session: Box<dyn ParseToken<SessionCookie>>,
-    csrf_token: Box<dyn ParseToken<CsrfToken>>,
+    session: Box<dyn RequestParser<SessionCookie>>,
+    csrf_token: Box<dyn RequestParser<CsrfToken>>,
 }
 
 impl CsrfTester {
-    pub fn new(session: Box<dyn ParseToken<SessionCookie>>,
-               csrf_token: Box<dyn ParseToken<CsrfToken>>) -> Self {
+    pub fn new(session: Box<dyn RequestParser<SessionCookie>>,
+               csrf_token: Box<dyn RequestParser<CsrfToken>>) -> Self {
         Self { session, csrf_token }
     }
 
-    fn test_vulnerability(&self, request: &Request) -> Option<VulnerableRequest> {
+    fn test_vulnerability(&self, request: &Request<Body>) -> Option<VulnerableRequest> {
         if let None = self.session.parse(&request) {
             return None;
         }
@@ -55,12 +54,14 @@ impl CsrfTester {
 
 #[cfg(test)]
 mod tests {
-    use reqwest::Request;
+    use http::Request;
 
     use crate::csrf::{CsrfTester, VulnerableRequest};
     use crate::csrf::token::CsrfToken;
     use crate::session::SessionCookie;
-    use crate::traits::ParseToken;
+    use crate::traits::{Body, RequestParser};
+
+    const EMPTY_BODY: Body = Body::Text(String::new());
 
     #[derive(Clone)]
     pub struct MockParser {
@@ -68,14 +69,14 @@ mod tests {
         csrf_token: fn() -> Option<CsrfToken>,
     }
 
-    impl ParseToken<SessionCookie> for MockParser {
-        fn parse(&self, _: &Request) -> Option<SessionCookie> {
+    impl RequestParser<SessionCookie> for MockParser {
+        fn parse(&self, _: &Request<Body>) -> Option<SessionCookie> {
             (self.session)()
         }
     }
 
-    impl ParseToken<CsrfToken> for MockParser {
-        fn parse(&self, _: &Request) -> Option<CsrfToken> {
+    impl RequestParser<CsrfToken> for MockParser {
+        fn parse(&self, _: &Request<Body>) -> Option<CsrfToken> {
             (self.csrf_token)()
         }
     }
@@ -88,9 +89,10 @@ mod tests {
         };
         let tester = CsrfTester::new(Box::new(mock.clone()), Box::new(mock.clone()));
 
-        let request = reqwest::Client::new()
-            .post("https://example.com/change-email")
-            .build()
+        let request = http::Request::builder()
+            .method("POST")
+            .uri("https://example.com/change-email")
+            .body(EMPTY_BODY)
             .unwrap();
 
         assert_eq!(tester.test_vulnerability(&request), None);
@@ -104,9 +106,10 @@ mod tests {
         };
         let tester = CsrfTester::new(Box::new(mock.clone()), Box::new(mock.clone()));
 
-        let request = reqwest::Client::new()
-            .post("https://example.com/change-email")
-            .build()
+        let request = http::Request::builder()
+            .method("POST")
+            .uri("https://example.com/change-email")
+            .body(EMPTY_BODY)
             .unwrap();
 
         assert_eq!(tester.test_vulnerability(&request), Some(VulnerableRequest {
