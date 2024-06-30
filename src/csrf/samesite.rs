@@ -1,13 +1,12 @@
 // https://datatracker.ietf.org/doc/html/draft-west-first-party-cookies-07#section-5
 
-use std::future::Future;
 use std::str::FromStr;
 
-use http::{HeaderValue, Response};
 use http::header::SET_COOKIE;
+use http::HeaderValue;
 use regex::Regex;
 
-use crate::traits::{Body, RequestParser, ResponseParser};
+use crate::shared_kernel::http::{Response, ResponseParser};
 
 #[derive(Debug, PartialEq)]
 enum SameSiteCookie {
@@ -29,12 +28,10 @@ impl FromStr for SameSiteCookie {
     }
 }
 
-struct SameSiteParser {}
+struct SameSiteParser;
 
 impl ResponseParser<SameSiteCookie> for SameSiteParser {
-    fn parse(&self, response: &Response<Body>) -> Option<SameSiteCookie> {
-        let h = response.headers();
-
+    fn parse(&self, response: &Response) -> Option<SameSiteCookie> {
         response.headers()
             .get(SET_COOKIE)
             .map(Self::get_samesite_cookie)
@@ -44,7 +41,7 @@ impl ResponseParser<SameSiteCookie> for SameSiteParser {
 
 impl SameSiteParser {
     pub fn new() -> Self {
-        Self {}
+        Self
     }
 
     fn get_samesite_cookie(header: &HeaderValue) -> Option<SameSiteCookie> {
@@ -60,7 +57,7 @@ mod tests {
     use http::header::SET_COOKIE;
 
     use crate::csrf::samesite::{SameSiteCookie, SameSiteParser};
-    use crate::traits::{Body, ResponseParser};
+    use crate::shared_kernel::http::{Body, ResponseParser};
 
     #[tokio::test]
     async fn fuzzer_keyword_in_headers() -> Result<(), String> {

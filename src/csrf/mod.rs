@@ -2,7 +2,7 @@ use http::Request;
 
 use crate::csrf::token::CsrfToken;
 use crate::session::SessionCookie;
-use crate::traits::{Body, RequestParser};
+use crate::shared_kernel::http::{Body, RequestParser};
 
 mod token;
 mod exploit;
@@ -29,26 +29,32 @@ impl From<&Request<Body>> for VulnerableRequest {
     }
 }
 
-struct CsrfTester {
-    session: Box<dyn RequestParser<SessionCookie>>,
-    csrf_token: Box<dyn RequestParser<CsrfToken>>,
+struct CsrfTester<S, C>
+    where
+        S: RequestParser<SessionCookie>,
+        C: RequestParser<CsrfToken>,
+{
+    session: S,
+    csrf_token: C,
 }
 
-impl CsrfTester {
-    pub fn new(session: Box<dyn RequestParser<SessionCookie>>,
-               csrf_token: Box<dyn RequestParser<CsrfToken>>) -> Self {
+impl<S, C> CsrfTester<S, C>
+    where
+        S: RequestParser<SessionCookie>,
+        C: RequestParser<CsrfToken>,
+{
+    pub fn new(session: S, csrf_token: C) -> Self {
         Self { session, csrf_token }
     }
 
     fn test_vulnerability(&self, request: &Request<Body>) -> Option<VulnerableRequest> {
-        if let None = self.session.parse(&request) {
+        if self.session.parse(&request).is_none() {
             return None;
         }
-
-        match self.csrf_token.parse(&request) {
-            Some(_) => None,
-            None => Some(VulnerableRequest::from(request))
+        if self.csrf_token.parse(&request).is_some() {
+            return None;
         }
+        Some(VulnerableRequest::from(request))
     }
 }
 
@@ -59,7 +65,7 @@ mod tests {
     use crate::csrf::{CsrfTester, VulnerableRequest};
     use crate::csrf::token::CsrfToken;
     use crate::session::SessionCookie;
-    use crate::traits::{Body, RequestParser};
+    use crate::shared_kernel::http::{Body, RequestParser};
 
     const EMPTY_BODY: Body = Body::Text(String::new());
 
@@ -87,7 +93,7 @@ mod tests {
             session: || None,
             csrf_token: || None,
         };
-        let tester = CsrfTester::new(Box::new(mock.clone()), Box::new(mock.clone()));
+        let tester = CsrfTester::new(mock.clone(), mock.clone());
 
         let request = http::Request::builder()
             .method("POST")
@@ -104,7 +110,7 @@ mod tests {
             session: || Some(SessionCookie::new("a-session")),
             csrf_token: || None,
         };
-        let tester = CsrfTester::new(Box::new(mock.clone()), Box::new(mock.clone()));
+        let tester = CsrfTester::new(mock.clone(), mock.clone());
 
         let request = http::Request::builder()
             .method("POST")

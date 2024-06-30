@@ -1,7 +1,7 @@
-mod http;
 mod csrf;
 mod session;
-mod traits;
+mod shared_kernel;
+mod error;
 
 fn main() {
 

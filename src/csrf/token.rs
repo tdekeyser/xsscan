@@ -1,7 +1,6 @@
-use http::Request;
 use regex::Regex;
 
-use crate::traits::{Body, RequestParser};
+use crate::shared_kernel::http::{Body, Request, RequestParser};
 
 #[derive(Debug, PartialEq)]
 pub struct CsrfToken(String);
@@ -15,7 +14,7 @@ impl CsrfToken {
 pub struct CsrfTokenParser {}
 
 impl RequestParser<CsrfToken> for CsrfTokenParser {
-    fn parse(&self, request: &Request<Body>) -> Option<CsrfToken> {
+    fn parse(&self, request: &Request) -> Option<CsrfToken> {
         Self::extract_token_from_body(request)
             .or(Self::extract_token_from_headers(request))
     }
@@ -26,7 +25,7 @@ impl CsrfTokenParser {
         Self {}
     }
 
-    fn extract_token_from_body(request: &Request<Body>) -> Option<CsrfToken> {
+    fn extract_token_from_body(request: &Request) -> Option<CsrfToken> {
         match request.body() {
             Body::Text(s) => Self::capture_token(s),
         }
@@ -45,7 +44,7 @@ impl CsrfTokenParser {
             .and_then(|caps| Some(CsrfToken(caps[2].to_string())))
     }
 
-    fn extract_token_from_headers(request: &Request<Body>) -> Option<CsrfToken> {
+    fn extract_token_from_headers(request: &Request) -> Option<CsrfToken> {
         let possible_headers = [
             "X-XSRF-TOKEN",  // Angular default
             "X-CSRF-TOKEN",  // Laravel default
@@ -66,7 +65,7 @@ mod tests {
     use reqwest::header::CONTENT_TYPE;
 
     use crate::csrf::token::{CsrfToken, CsrfTokenParser};
-    use crate::traits::{Body, RequestParser};
+    use crate::shared_kernel::http::{Body, RequestParser};
 
     macro_rules! find_token_in_request {
         ( $( $name:ident : ( $body_token_name:expr , $header_token_name:expr ) , )* ) => {
@@ -92,8 +91,8 @@ mod tests {
         test_with_header_xsrf: ("nothing", "X-XSRF-TOKEN"),
         test_with_header_csrf: ("nothing", "X-CSRF-TOKEN"),
         test_with_body_token: ("token", "UNUSED"),
-        test_with_body__token: ("_token", "UNUSED"),
-        test_with_body__csrf: ("_csrf", "UNUSED"),
+        test_with_body_u_token: ("_token", "UNUSED"),
+        test_with_body_u_csrf: ("_csrf", "UNUSED"),
         test_with_body_xsrf_token: ("xsrf-token", "UNUSED"),
         test_with_body_xsrf: ("xsrf", "UNUSED"),
         test_with_body_token_cap: ("Token", "UNUSED"),

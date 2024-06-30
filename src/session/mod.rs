@@ -1,7 +1,7 @@
 use http::Request;
 use regex::Regex;
 
-use crate::traits::{Body, RequestParser};
+use crate::shared_kernel::http::{Body, RequestParser};
 
 #[derive(PartialEq, Debug)]
 pub struct SessionCookie(String);
@@ -12,7 +12,7 @@ impl SessionCookie {
     }
 }
 
-pub struct SessionCookieParser {}
+pub struct SessionCookieParser;
 
 impl RequestParser<SessionCookie> for SessionCookieParser {
     fn parse(&self, request: &Request<Body>) -> Option<SessionCookie> {
@@ -40,8 +40,8 @@ impl RequestParser<SessionCookie> for SessionCookieParser {
 }
 
 impl SessionCookieParser {
-    fn new() -> SessionCookieParser {
-        SessionCookieParser {}
+    fn new() -> Self {
+        Self
     }
 
     fn get_cookies(request: &Request<Body>) -> String {
@@ -56,7 +56,7 @@ impl SessionCookieParser {
 #[cfg(test)]
 mod tests {
     use crate::session::{SessionCookie, SessionCookieParser};
-    use crate::traits::{Body, RequestParser};
+    use crate::shared_kernel::http::{Body, RequestParser};
 
     const EMPTY_BODY: Body = Body::Text(String::new());
 
@@ -69,7 +69,7 @@ mod tests {
             .body(EMPTY_BODY)
             .unwrap();
 
-        assert_eq!(SessionCookieParser::new().parse(&request),
+        assert_eq!(SessionCookieParser.parse(&request),
                    Some(SessionCookie::new("1234sess==")));
     }
 
@@ -82,7 +82,7 @@ mod tests {
             .body(EMPTY_BODY)
             .unwrap();
 
-        assert_eq!(SessionCookieParser::new().parse(&request),
+        assert_eq!(SessionCookieParser.parse(&request),
                    Some(SessionCookie::new("1234sess==")));
     }
 
@@ -95,7 +95,7 @@ mod tests {
             .body(EMPTY_BODY)
             .unwrap();
 
-        assert_eq!(SessionCookieParser::new().parse(&request), None);
+        assert_eq!(SessionCookieParser.parse(&request), None);
     }
 
     #[test]
@@ -106,6 +106,6 @@ mod tests {
             .body(EMPTY_BODY)
             .unwrap();
 
-        assert_eq!(SessionCookieParser::new().parse(&request), None);
+        assert_eq!(SessionCookieParser.parse(&request), None);
     }
 }
