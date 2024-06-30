@@ -38,10 +38,6 @@ impl RequestParser<SessionCookie> for SessionCookieParser {
 }
 
 impl SessionCookieParser {
-    fn new() -> Self {
-        Self
-    }
-
     fn get_cookies(request: &Request<Body>) -> String {
         request.headers()
             .get("Cookie")
