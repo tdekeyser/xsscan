@@ -27,15 +27,13 @@ impl RequestParser<SessionCookie> for SessionCookieParser {
             "sid"
         ];
 
+        let cookies = Self::get_cookies(request);
+
         let pattern = format!(r"(?i)({})\s*=([^&]+)", session_cookie_names.join("|"));
         let re = Regex::new(&pattern).unwrap();
 
-        let cookies = Self::get_cookies(request);
-
-        match re.captures(cookies.as_str()) {
-            Some(caps) => Some(SessionCookie(caps[2].to_string())),
-            None => None
-        }
+        re.captures(cookies.as_str())
+            .map(|caps| SessionCookie(caps[2].to_string()))
     }
 }
 
